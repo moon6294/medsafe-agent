@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.ipynb_checkpoints/
+
+# Environment
+.env
+.venv/
+venv/
+env/
+
+# Node / frontend
+node_modules/
+frontend-react/node_modules/
+frontend/node_modules/
+frontend-react/.npm-cache/
+dist/
+build/
+
+# Model and cache files
+models/
+hf_cache/
+modelscope_cache*/
+*.bin
+*.safetensors
+*.pt
+*.pth
+*.onnx
+
+# Vector database
+rag/chroma_db/
+chroma_db/
+
+# Uploads and temporary files
+uploads/
+*.log
+*.zip
+*.tar
+*.tar.gz
+*.rar
+
+# System
+.DS_Store
