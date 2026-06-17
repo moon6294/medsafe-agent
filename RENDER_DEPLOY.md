@@ -36,9 +36,9 @@ If you do not use Blueprint, create a **Web Service** with these settings:
   - `QWEN_API_KEY`: your DashScope/Qwen API key
   - `QWEN_BASE_URL`: `https://dashscope.aliyuncs.com/compatible-mode/v1`
   - `QWEN_MODEL`: `qwen-plus`
+  - `OCR_ENGINE`: `easyocr`
 
 ## Notes
 
-The OCR and embedding dependencies are large. If the build fails because of
-memory, disk, or timeout limits, upgrade the Render instance plan or deploy a
-lighter OCR mode that excludes PaddleOCR.
+The OCR and embedding dependencies are still relatively large. This deployment
+uses EasyOCR only and does not install PaddleOCR or PaddlePaddle.
