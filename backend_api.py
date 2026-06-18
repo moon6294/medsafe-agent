@@ -9,6 +9,7 @@ from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
+from starlette.concurrency import run_in_threadpool
 from typing import List, Optional, Dict, Any
 
 # 导入 Agent
@@ -158,26 +159,35 @@ async def upload_instruction(
     """
     # 保存文件
     os.makedirs("uploads", exist_ok=True)
-    file_path = os.path.join("uploads", file.filename)
+    safe_filename = Path(file.filename or "instruction-upload.bin").name
+    file_path = os.path.join("uploads", safe_filename)
+    content = await file.read()
+    if len(content) > 8 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Upload must be 8 MB or smaller")
+
     with open(file_path, "wb") as f:
-        content = await file.read()
         f.write(content)
 
     try:
-        result = instruction_agent(file_path=file_path, query=query)
+        result = await run_in_threadpool(instruction_agent, file_path=file_path, query=query)
     except Exception as e:
         return InstructionParseOutput(
             success=False,
             file_path=file_path,
-            file_type=file.filename.split('.')[-1].lower(),
+            file_type=safe_filename.split('.')[-1].lower(),
             text="",
             error_message=f"Agent 调用异常：{str(e)}"
         )
+    finally:
+        try:
+            os.remove(file_path)
+        except OSError:
+            pass
 
     return InstructionParseOutput(
         success=result.get("success", True),
         file_path=file_path,
-        file_type=file.filename.split('.')[-1].lower(),
+        file_type=safe_filename.split('.')[-1].lower(),
         text=result.get("answer", ""),
         error_message=result.get("error_message")
     )

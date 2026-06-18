@@ -20,3 +20,9 @@ services:
         value: "60"
       - key: OCR_ENGINE
         value: easyocr
+      - key: OCR_CPU_THREADS
+        value: "1"
+      - key: OCR_MAX_IMAGE_DIMENSION
+        value: "1600"
+      - key: OCR_CANVAS_SIZE
+        value: "1600"

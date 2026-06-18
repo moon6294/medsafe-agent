@@ -28,11 +28,31 @@ def _get_easyocr_reader():
 
     if _easyocr_reader is None:
         import easyocr
+        import torch
 
+        thread_count = max(1, int(os.getenv("OCR_CPU_THREADS", "1")))
+        torch.set_num_threads(thread_count)
         try:
-            _easyocr_reader = easyocr.Reader(["ch_sim", "en"], gpu=True)
-        except Exception:
-            _easyocr_reader = easyocr.Reader(["ch_sim", "en"], gpu=False)
+            torch.set_num_interop_threads(1)
+        except RuntimeError:
+            pass
+
+        model_dir = os.getenv("EASYOCR_MODEL_DIR")
+        download_enabled = os.getenv("EASYOCR_DOWNLOAD_ENABLED", "true").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+        }
+        reader_options = {
+            "gpu": False,
+            "quantize": True,
+            "download_enabled": download_enabled,
+            "verbose": False,
+        }
+        if model_dir:
+            reader_options["model_storage_directory"] = model_dir
+
+        _easyocr_reader = easyocr.Reader(["ch_sim", "en"], **reader_options)
 
     return _easyocr_reader
 
@@ -75,22 +95,15 @@ def _score_text(text: str) -> int:
 
 
 def _build_image_variants(image_path: Path, temp_dir: Path) -> List[Path]:
-    variants = [image_path]
-
     try:
         from PIL import Image, ImageEnhance, ImageOps
 
         image = Image.open(image_path).convert("RGB")
         width, height = image.size
 
-        scale = 1.0
-        if width < 1800:
-            scale = max(scale, 1800 / max(width, 1))
-        if height < 2400:
-            scale = max(scale, 2400 / max(height, 1))
-        scale = min(scale, 3.0)
-
-        if scale > 1.05:
+        max_dimension = max(640, int(os.getenv("OCR_MAX_IMAGE_DIMENSION", "1600")))
+        scale = min(1.0, max_dimension / max(width, height, 1))
+        if scale < 1.0:
             image = image.resize((int(width * scale), int(height * scale)), Image.Resampling.LANCZOS)
 
         enhanced = ImageOps.grayscale(image)
@@ -100,17 +113,26 @@ def _build_image_variants(image_path: Path, temp_dir: Path) -> List[Path]:
 
         enhanced_path = temp_dir / "ocr_enhanced.png"
         enhanced.save(enhanced_path)
-        variants.append(enhanced_path)
+        return [enhanced_path]
 
     except Exception as exc:
         _debug(f"image enhancement skipped: {exc}")
 
-    return variants
+    return [image_path]
 
 
 def _read_with_easyocr(image_path: Path) -> str:
     reader = _get_easyocr_reader()
-    results = reader.readtext(str(image_path), detail=1, paragraph=False)
+    canvas_size = max(640, int(os.getenv("OCR_CANVAS_SIZE", "1600")))
+    results = reader.readtext(
+        str(image_path),
+        detail=1,
+        paragraph=False,
+        batch_size=1,
+        workers=0,
+        canvas_size=canvas_size,
+        mag_ratio=1.0,
+    )
 
     items = []
     for result in results or []:

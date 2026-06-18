@@ -13,6 +13,14 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     HF_HOME=/app/.cache/huggingface \
     TRANSFORMERS_CACHE=/app/.cache/huggingface \
+    EASYOCR_MODEL_DIR=/app/.cache/easyocr \
+    EASYOCR_DOWNLOAD_ENABLED=false \
+    OCR_CPU_THREADS=1 \
+    OCR_MAX_IMAGE_DIMENSION=1600 \
+    OCR_CANVAS_SIZE=1600 \
+    OMP_NUM_THREADS=1 \
+    MKL_NUM_THREADS=1 \
+    MALLOC_ARENA_MAX=2 \
     PORT=8000
 
 WORKDIR /app
@@ -28,6 +36,8 @@ RUN apt-get update \
 COPY requirements.txt ./
 RUN python -m pip install --upgrade pip \
     && pip install -r requirements.txt
+
+RUN EASYOCR_DOWNLOAD_ENABLED=true python -c "import easyocr; easyocr.Reader(['ch_sim', 'en'], gpu=False, quantize=True, model_storage_directory='/app/.cache/easyocr', download_enabled=True, verbose=False)"
 
 COPY . .
 COPY --from=frontend-builder /app/frontend-react/dist ./frontend-react/dist
